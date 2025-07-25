@@ -1,6 +1,4 @@
 import os
-import tempfile
-import shutil
 import pytest
 
 from run import (
@@ -8,7 +6,6 @@ from run import (
     clear_flash_drive,
     verify_flash_capacity,
     calculate_real_usage,
-    FLASH_DRIVE,
 )
 
 @pytest.fixture
@@ -17,16 +14,25 @@ def temp_flash_drive(tmp_path, monkeypatch):
     monkeypatch.setattr("run.FLASH_DRIVE", str(tmp_path))
     yield tmp_path
 
-def test_get_unique_filename(temp_flash_drive, monkeypatch):
-    # Создаём файл с именем "song.mp3"
+def test_get_unique_filename_no_randomize(temp_flash_drive, monkeypatch):
+    # Проверка уникального имени без RANDOMIZE
+    monkeypatch.setattr("run.RANDOMIZE", False)
     file_path = temp_flash_drive / "song.mp3"
     file_path.write_text("test")
     monkeypatch.setattr("run.FLASH_DRIVE", str(temp_flash_drive))
-    # Должен вернуть уникальное имя
     unique = get_unique_filename("song.mp3")
     assert unique != "song.mp3"
-    assert unique.startswith("song_")
+    assert unique.startswith("song_") or unique.startswith("song.")
     assert unique.endswith(".mp3")
+
+def test_get_unique_filename_randomize(temp_flash_drive, monkeypatch):
+    # Проверка уникального имени с RANDOMIZE
+    monkeypatch.setattr("run.RANDOMIZE", True)
+    monkeypatch.setattr("run.FLASH_DRIVE", str(temp_flash_drive))
+    unique = get_unique_filename("song.mp3")
+    assert unique.startswith("[")
+    assert unique[5:7].isdigit() or unique[1:5].isdigit()
+    assert unique.endswith("song.mp3")
 
 def test_clear_flash_drive(temp_flash_drive, monkeypatch):
     # Создаём файлы и папки
