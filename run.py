@@ -18,8 +18,9 @@ HISTORY_FILE = os.getenv("HISTORY_FILE", os.path.expanduser("~/.flash_music_hist
 ALLOWED_CAPACITY_DEVIATION = float(os.getenv("ALLOWED_CAPACITY_DEVIATION", 0.02))
 EXPECTED_SIZE_GB = int(os.getenv("EXPECTED_SIZE_GB", 36))
 RESERVE_SIZE = int(os.getenv("RESERVE_SIZE", 100 * 1024**2))
-EXTENSIONS = ('.mp3',".mp4")
+EXTENSIONS = ('.mp3', ".mp4")
 THREAD_COUNT = int(os.getenv("THREAD_COUNT", 3))
+RANDOMIZE = os.getenv("RANDOMIZE", "False").lower() in ("1", "true", "yes")
 
 # Глобальные переменные
 current_total = 0
@@ -70,15 +71,26 @@ def clear_flash_drive():
                 print(f"\nОшибка при удалении {item_path}: {str(e)}")
 
 def get_unique_filename(filename):
-    """Генерирует уникальное имя файла в целевой директории"""
+    """Генерирует уникальное имя файла в целевой директории с учетом RANDOMIZE"""
     base, ext = os.path.splitext(filename)
     counter = 1
     new_name = filename
-    
+
+    # Добавляем случайный префикс, если включено RANDOMIZE
+    if RANDOMIZE:
+        rand_prefix = f"[{random.randint(1000, 9999)}]_"
+        new_name = f"{rand_prefix}{filename}"
+        base, ext = os.path.splitext(new_name)
+
     while os.path.exists(os.path.join(FLASH_DRIVE, new_name)):
-        new_name = f"{base}_{counter}{ext}"
-        counter += 1
-    
+        if RANDOMIZE:
+            rand_prefix = f"[{random.randint(1000, 9999)}]_"
+            new_name = f"{rand_prefix}{filename}"
+            base, ext = os.path.splitext(new_name)
+        else:
+            new_name = f"{base}_{counter}{ext}"
+            counter += 1
+
     return new_name
 
 def worker(file_queue):
