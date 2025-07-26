@@ -14,7 +14,7 @@ load_dotenv()
 # Конфигурация
 FLASH_DRIVE = os.getenv("FLASH_DRIVE", "/mnt/CD")
 MUSIC_LIBRARY = os.getenv("MUSIC_LIBRARY", "/mnt/hdd/FILES/Music")
-HISTORY_FILE = os.getenv("HISTORY_FILE", os.path.expanduser("~/.flash_music_history"))
+HISTORY_FILE = os.getenv("HISTORY_FILE", os.path.expanduser("~/.config/.flash_music_history"))
 ALLOWED_CAPACITY_DEVIATION = float(os.getenv("ALLOWED_CAPACITY_DEVIATION", 0.02))
 EXPECTED_SIZE_GB = int(os.getenv("EXPECTED_SIZE_GB", 36))
 RESERVE_SIZE = int(os.getenv("RESERVE_SIZE", 100 * 1024**2))
@@ -194,9 +194,9 @@ def main():
         TARGET_SIZE = flash_size - RESERVE_SIZE
     
     # Очистка флешки
-    print("Очищаю флешку...", end='', flush=True)
+    print(f"Очищаю флешку {FLASH_DRIVE}...", end='', flush=True)
     clear_flash_drive()
-    print("\rФлешка очищена.          ")
+    print("...Флешка очищена.          ")
     print(f"Обнаружен размер флешки: {flash_size/1024**3:.2f}GB")
     print(f"Целевой размер для заполнения: {TARGET_SIZE/1024**3:.2f}GB (с резервом {RESERVE_SIZE/1024**2}MB)")
     
@@ -211,7 +211,7 @@ def main():
             copied_files = set()
 
     # Поиск всех аудиофайлов
-    print("Сканирую медиатеку...", end='', flush=True)
+    print(f"Сканирую медиатеку {MUSIC_LIBRARY}...", end='', flush=True)
     all_files = []
     for root, _, files in os.walk(MUSIC_LIBRARY):
         for file in files:
@@ -256,6 +256,7 @@ def main():
     
     # Обновляем историю
     if new_copied:
+        os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
         with open(HISTORY_FILE, 'a') as f:
             for path in new_copied:
                 f.write(f"{path}\n")
