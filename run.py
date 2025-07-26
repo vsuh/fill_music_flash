@@ -173,39 +173,39 @@ def calculate_real_usage():
 def main():
     global current_total, copied_count, new_copied, start_time, TARGET_SIZE
     start_time = time.time()
-    
+
     # Парсинг аргументов
     parser = argparse.ArgumentParser(description='Заполнение флешки случайными аудиофайлами')
     parser.add_argument('--skip-size-check', action='store_true', help='Пропустить проверку размера флешки')
     args = parser.parse_args()
-    
+
     # Проверка доступности путей
     if not os.path.exists(FLASH_DRIVE):
         sys.exit(f"Ошибка: {FLASH_DRIVE} не существует!")
-    
+
     if not os.path.exists(MUSIC_LIBRARY):
         sys.exit(f"Ошибка: Медиатека {MUSIC_LIBRARY} не найдена!")
-    
+
     # Определение размера флешки
     flash_size = shutil.disk_usage(FLASH_DRIVE).total
     if not args.skip_size_check:
         flash_size = verify_flash_capacity()
     else:
         TARGET_SIZE = flash_size - RESERVE_SIZE
-    
+
     # Очистка флешки
     print(f"Очищаю флешку {FLASH_DRIVE}...", end='', flush=True)
     clear_flash_drive()
     print("...Флешка очищена.          ")
     print(f"Обнаружен размер флешки: {flash_size/1024**3:.2f}GB")
     print(f"Целевой размер для заполнения: {TARGET_SIZE/1024**3:.2f}GB (с резервом {RESERVE_SIZE/1024**2}MB)")
-    
+
     # Загрузка истории копирования
     copied_files = set()
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, 'r') as f:
-                copied_files = set(line.strip() for line in f)
+                copied_files = {line.strip() for line in f}
         except Exception:
             print("Предупреждение: Не удалось прочитать файл истории. Начинаю с чистого листа.")
             copied_files = set()
@@ -218,58 +218,58 @@ def main():
             if file.lower().endswith(EXTENSIONS):
                 full_path = os.path.join(root, file)
                 all_files.append(full_path)
-    
+
     # Исключаем файлы из истории
     candidate_files = [f for f in all_files if f not in copied_files]
-    
+
     # Если кандидатов недостаточно - сбрасываем историю
     if not candidate_files:
         print("\rВсе файлы уже были использованы. Сбрасываю историю.", end='', flush=True)
         candidate_files = all_files
         copied_files = set()
-    
+
     # Перемешиваем файлы
     random.shuffle(candidate_files)
-    
+
     # Создаем очередь задач
     file_queue = Queue()
     for file_path in candidate_files:
         file_queue.put(file_path)
-    
+
     # Запускаем потоки
     threads = []
-    for i in range(THREAD_COUNT):
+    for _ in range(THREAD_COUNT):
         t = threading.Thread(target=worker, args=(file_queue,))
         t.daemon = True
         t.start()
         threads.append(t)
-    
+
     # Отображение прогресса
     print("\nНачинаю копирование:")
     while any(t.is_alive() for t in threads):
         update_progress()
         time.sleep(0.1)
-    
+
     # Финальное обновление прогресса
     update_progress()
     print()
-    
+
     # Обновляем историю
     if new_copied:
         os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
         with open(HISTORY_FILE, 'a') as f:
             for path in new_copied:
                 f.write(f"{path}\n")
-        
+
         # Рассчитываем реальное использование
         real_used = calculate_real_usage()
         free_space = shutil.disk_usage(FLASH_DRIVE).free
         elapsed_time = time.time() - start_time
         mins, secs = divmod(elapsed_time, 60)
         total_flash = shutil.disk_usage(FLASH_DRIVE).total
-        
+
         print(f"\n{'='*50}")
-        print(f"Итоги копирования:")
+        print("Итоги копирования:")
         print(f" - Физический размер флешки: {total_flash/1024**3:.2f}GB")
         print(f" - Скопировано файлов: {copied_count}")
         print(f" - Суммарный размер файлов: {current_total/1024**3:.2f}GB")
@@ -279,14 +279,14 @@ def main():
         print(f" - Добавлено в историю: {len(new_copied)} записей")
         print(f" - Уникальных файлов в истории: {len(copied_files) + len(new_copied)}")
         print(f" - Время выполнения: {int(mins)} мин {int(secs)} сек")
-        
+
         # Проверка расхождения
         discrepancy = abs(real_used - current_total)
         if discrepancy > 1024**3:  # Расхождение более 1GB
             print(f"\n  ВНИМАНИЕ: Обнаружено расхождение между суммарным размером файлов")
             print(f"  и реально занятым местом: {discrepancy/1024**3:.2f}GB")
-            print(f"  Это может быть вызвано особенностями файловой системы.")
-        
+            print( "  Это может быть вызвано особенностями файловой системы.")
+
         print(f"{'='*50}")
     else:
         print("Не удалось скопировать ни одного файла.")
